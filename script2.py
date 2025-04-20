@@ -458,6 +458,7 @@ def exportar_geojson(puntos_con_elevacion: List[InterpolatedPoint],
         return
 
     features = []
+    # Agregar puntos interpolados
     for p in puntos_con_elevacion:
         elevation = p.elevation if p.elevation is not None else None
         point = Point((p.lon, p.lat))
@@ -468,6 +469,7 @@ def exportar_geojson(puntos_con_elevacion: List[InterpolatedPoint],
         }
         features.append(Feature(geometry=point, properties=properties))
 
+    # Agregar estaciones
     kms_puntos = np.array([p.km for p in puntos_con_elevacion])
     elevs_puntos = np.array([p.elevation for p in puntos_con_elevacion])
     for est in estaciones_tramo:
@@ -482,9 +484,12 @@ def exportar_geojson(puntos_con_elevacion: List[InterpolatedPoint],
                 "type": "station"
             }
             features.append(Feature(geometry=point, properties=properties))
+        except Exception as e:
+            logging.warning(f"No se pudo exportar {est.nombre} a GeoJSON: {e}")
 
-    collection = FeatureCollection(features, properties={"author": f"{author} - Perfil altimétrico para vías férreas"})
+    # Crear y guardar FeatureCollection
     try:
+        collection = FeatureCollection(features, properties={"author": f"{author} - Perfil altimétrico para vías férreas"})
         with open(archivo_geojson, 'w', encoding='utf-8') as f:
             dump(collection, f, indent=2)
         logging.info(f"GeoJSON guardado en: {archivo_geojson}")
@@ -595,9 +600,9 @@ def parse_args():
 
 def main():
     """Función principal."""
+    args = parse_args()
     logging.info(f">>> Iniciando script - {args.author} <<<")
     print(f"\n{args.author} - Perfil altimétrico para vías férreas")
-    args = parse_args()
 
     try:
         estaciones_todas = cargar_estaciones(args.csv)
