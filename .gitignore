@@ -1,0 +1,21 @@
+# Ignorar el archivo de caché de elevaciones
+elevations_cache.csv
+
+# Ignorar entornos virtuales
+venv/
+.venv/
+
+# Ignorar archivos temporales de Python
+__pycache__/
+*.pyc
+
+# Ignorar archivos temporales del sistema
+.DS_Store
+*.log
+
+# Ignorar archivos generados por la aplicación
+*.html
+*.pdf
+*.kml
+*.geojson
+*.csv
