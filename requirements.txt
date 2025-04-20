@@ -13,3 +13,4 @@ simplekml
 matplotlib>=3.10.1
 geojson
 tenacity>=9.1.2
+gpxpy
