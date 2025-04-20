@@ -4,9 +4,9 @@ import xml.etree.ElementTree as ET
 import os
 import tempfile
 import numpy as np
-from script2 import (cargar_estaciones, interpolar_puntos, obtener_elevaciones_paralelo,
-                    calcular_pendiente_suavizada, graficar_html, exportar_pdf,
-                    exportar_csv, exportar_kml, exportar_geojson)
+from script2 import (cargar_estaciones, interpolar_puntos,
+                    obtener_elevaciones_paralelo, calcular_pendiente_suavizada,
+                    graficar_html, exportar_pdf, exportar_csv, exportar_kml, exportar_geojson)
 
 # Configuración de la página
 st.set_page_config(page_title="Perfil Altimétrico Ferroviario", layout="wide")
@@ -114,7 +114,7 @@ if not df_estaciones.empty:
     df_editada = st.data_editor(df_estaciones, use_container_width=True, num_rows="dynamic")
     
     st.subheader("⚙️ Configuración")
-    intervalo_m = st.slider("Intervalo de interpolación (metros)", 50, 500, 100, step=10)
+    intervalo_m = st.slider("Intervalo de interpolación (metros)", 50, 500, 200, step=10)
     ventana_suavizado = st.number_input("Ventana de suavizado", 3, 15, 5, step=2)
 
     # Botón para limpiar el caché
