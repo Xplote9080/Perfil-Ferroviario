@@ -14,7 +14,7 @@ st.title("🚆 Generador de Perfil Altimétrico Ferroviario - LAL 2025")
 
 st.markdown("""
 Subí un archivo **CSV** con estaciones o un **KML** con puntos (nombre, latitud, longitud).
-El nombre del punto debe tener este formato: `NombreEstacion,KM` (ej: `Ayacucho,332.5`)
+El nombre del punto debe tener este formato: `NombreEstacion,KM` (ej: `Ayacucho,332.5`).
 """)
 
 # --- Función para procesar KML ---
@@ -34,20 +34,35 @@ def procesar_kml(kml_file):
                 texto = name_tag.text.strip()
                 nombre, km = texto.split(',')
                 lon, lat, *_ = coord_tag.text.strip().split(',')
+                lat = float(lat)
+                lon = float(lon)
+                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    raise ValueError(f"Coordenadas fuera de rango: Lat={lat}, Lon={lon}")
                 datos.append({
                     'Nombre': nombre.strip(),
                     'Km': float(km.strip()),
-                    'Lat': float(lat),
-                    'Lon': float(lon)
+                    'Lat': lat,
+                    'Lon': lon
                 })
             except Exception as e:
                 st.warning(f"❌ Error en etiqueta '{name_tag.text}': {e}")
-    return pd.DataFrame(datos) if datos else pd.DataFrame()
+    df = pd.DataFrame(datos)
+    if not df.empty:
+        # Validar orden de kilómetros
+        kms = df['Km'].values
+        if len(kms) < 2:
+            st.error("❌ Se requieren al menos 2 estaciones")
+            return pd.DataFrame()
+        if not all(kms[i] < kms[i+1] for i in range(len(kms)-1)):
+            st.error("❌ Los kilómetros deben ser estrictamente crecientes")
+            return pd.DataFrame()
+    return df
 
 # --- Generar perfil ---
 @st.cache_data
 def generar_perfil(_df_editada, intervalo_m, ventana_suavizado):
     """Genera el perfil altimétrico para un tramo."""
+    progress_bar = st.progress(0)
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as csv_temp:
         _df_editada.to_csv(csv_temp.name, index=False)
         estaciones = cargar_estaciones(csv_temp.name)
@@ -55,13 +70,15 @@ def generar_perfil(_df_editada, intervalo_m, ventana_suavizado):
     tramos = [estaciones]
     nombre_tramo = f"{estaciones[0].nombre} a {estaciones[-1].nombre}"
     puntos_interp = interpolar_puntos(estaciones, intervalo_m)
-    puntos_elev = obtener_elevaciones_paralelo(puntos_interp)
+    puntos_elev = obtener_elevaciones_paralelo(puntos_interp, progress_callback=progress_bar.progress)
     kms = np.array([p.km for p in puntos_elev])
     elevs = np.array([p.elevation for p in puntos_elev])
     pendientes = calcular_pendiente_suavizada(kms, elevs, window_length=ventana_suavizado)
-    fig = graficar_html(puntos_elev, estaciones, f"perfil_temp_{nombre_tramo}.html",
-                        titulo=f"Perfil Altimétrico - {nombre_tramo}",
-                        slope_data=pendientes)
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp:
+        html_file = tmp.name
+        fig = graficar_html(puntos_elev, estaciones, html_file,
+                            titulo=f"Perfil Altimétrico - {nombre_tramo}",
+                            slope_data=pendientes)
     nombre_base = f"perfil_{estaciones[0].nombre}_{estaciones[-1].nombre}".replace(" ", "_")
     return fig, puntos_elev, pendientes, estaciones, nombre_base, csv_temp.name
 
@@ -135,35 +152,39 @@ if not df_estaciones.empty:
                 fig, puntos_elev, pendientes, estaciones, nombre_base, csv_temp_path = generar_perfil(
                     df_editada, intervalo_m, ventana_suavizado
                 )
-                archivos_temporales = [f"perfil_temp_{nombre_base}.html"]
+                archivos_temporales = [csv_temp_path]
 
                 st.success("✅ Perfil generado")
                 st.plotly_chart(fig, use_container_width=True)
 
                 with st.expander("📥 Descargar resultados"):
-                    pdf_file = f"{nombre_base}.pdf"
-                    exportar_pdf(fig, pdf_file)
+                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                        pdf_file = tmp.name
+                        exportar_pdf(fig, pdf_file)
+                        archivos_temporales.append(pdf_file)
                     with open(pdf_file, "rb") as f:
-                        st.download_button("📄 Descargar PDF", f, file_name=pdf_file)
-                    archivos_temporales.append(pdf_file)
+                        st.download_button("📄 Descargar PDF", f, file_name=f"{nombre_base}.pdf")
 
-                    csv_file = f"{nombre_base}_datos.csv"
-                    exportar_csv(puntos_elev, pendientes, csv_file)
+                    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+                        csv_file = tmp.name
+                        exportar_csv(puntos_elev, pendientes, csv_file)
+                        archivos_temporales.append(csv_file)
                     with open(csv_file, "rb") as f:
-                        st.download_button("📊 Descargar CSV", f, file_name=csv_file)
-                    archivos_temporales.append(csv_file)
+                        st.download_button("📊 Descargar CSV", f, file_name=f"{nombre_base}_datos.csv")
 
-                    kml_file = f"{nombre_base}_estaciones.kml"
-                    exportar_kml(puntos_elev, estaciones, kml_file)
+                    with tempfile.NamedTemporaryFile(suffix=".kml", delete=False) as tmp:
+                        kml_file = tmp.name
+                        exportar_kml(puntos_elev, estaciones, kml_file)
+                        archivos_temporales.append(kml_file)
                     with open(kml_file, "rb") as f:
-                        st.download_button("🌍 Descargar KML", f, file_name=kml_file)
-                    archivos_temporales.append(kml_file)
+                        st.download_button("🌍 Descargar KML", f, file_name=f"{nombre_base}_estaciones.kml")
 
-                    geojson_file = f"{nombre_base}.geojson"
-                    exportar_geojson(puntos_elev, estaciones, geojson_file)
+                    with tempfile.NamedTemporaryFile(suffix=".geojson", delete=False) as tmp:
+                        geojson_file = tmp.name
+                        exportar_geojson(puntos_elev, estaciones, geojson_file)
+                        archivos_temporales.append(geojson_file)
                     with open(geojson_file, "rb") as f:
-                        st.download_button("🗺️ Descargar GeoJSON", f, file_name=geojson_file)
-                    archivos_temporales.append(geojson_file)
+                        st.download_button("🗺️ Descargar GeoJSON", f, file_name=f"{nombre_base}.geojson")
 
         except ValueError as e:
             st.error(f"❌ Error en los datos: {e}")
@@ -172,7 +193,7 @@ if not df_estaciones.empty:
         except Exception as e:
             st.error(f"❌ Error inesperado: {e}")
         finally:
-            for archivo in [csv_temp_path] + archivos_temporales:
+            for archivo in archivos_temporales:
                 try:
                     if os.path.exists(archivo):
                         os.remove(archivo)
