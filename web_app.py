@@ -3,10 +3,12 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import tempfile
+import numpy as np
 from script2 import (cargar_estaciones, interpolar_puntos, obtener_elevaciones_paralelo,
                     calcular_pendiente_suavizada, graficar_html, exportar_pdf,
                     exportar_csv, exportar_kml, exportar_geojson)
 
+# Configuración de la página
 st.set_page_config(page_title="Perfil Altimétrico Ferroviario", layout="wide")
 st.title("🚆 Generador de Perfil Altimétrico Ferroviario - LAL 2025")
 
@@ -23,7 +25,6 @@ def procesar_kml(kml_file):
     root = tree.getroot()
     placemarks = root.findall('.//kml:Placemark', ns)
     datos = []
-
     for pm in placemarks:
         name_tag = pm.find('kml:name', ns)
         point_tag = pm.find('.//kml:Point', ns)
@@ -115,6 +116,18 @@ if not df_estaciones.empty:
     st.subheader("⚙️ Configuración")
     intervalo_m = st.slider("Intervalo de interpolación (metros)", 50, 500, 100, step=10)
     ventana_suavizado = st.number_input("Ventana de suavizado", 3, 15, 5, step=2)
+
+    # Botón para limpiar el caché
+    with st.expander("🛠️ Opciones avanzadas"):
+        if st.button("🗑️ Limpiar caché de elevaciones"):
+            if os.path.exists("elevations_cache.csv"):
+                os.remove("elevations_cache.csv")
+                st.success("✅ Caché eliminado")
+            else:
+                st.info("ℹ️ No hay caché para eliminar")
+        if os.path.exists("elevations_cache.csv"):
+            with open("elevations_cache.csv", "rb") as f:
+                st.download_button("📥 Descargar caché de elevaciones", f, file_name="elevations_cache.csv")
 
     if st.button("🚀 Generar perfil altimétrico"):
         try:
