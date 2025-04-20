@@ -1,3 +1,4 @@
+streamlit>=1.44.1
 plotly>=5.0.0
 requests>=2.25.1
 numpy>=1.20.0
@@ -7,11 +8,8 @@ tqdm>=4.62.0
 PyPDF2>=1.27.0
 reportlab>=3.6.0
 kaleido
-pandas
+pandas>=2.2.3
 simplekml
-matplotlib
-pywin32
-geojson 
-tenacity
-gpxpy
-streamlit
+matplotlib>=3.10.1
+geojson
+tenacity>=9.1.2
