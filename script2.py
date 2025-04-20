@@ -100,10 +100,20 @@ def _load_elevation_from_cache(lat: float, lon: float) -> Optional[float]:
     try:
         with open(ELEVATION_CACHE_FILE, mode='r', encoding='utf-8', newline='') as f:
             reader = csv.reader(f)
-            next(reader, None)  # Saltar encabezado
             for row in reader:
-                if len(row) >= 3 and float(row[0]) == lat and float(row[1]) == lon:
-                    return float(row[2])
+                # Ignorar líneas de comentario, vacías o encabezados
+                if not row or row[0].startswith('#') or row[0].lower() == 'latitude':
+                    continue
+                try:
+                    if len(row) >= 3:
+                        lat_csv = float(row[0])
+                        lon_csv = float(row[1])
+                        elevation = float(row[2])
+                        if lat_csv == lat and lon_csv == lon:
+                            return elevation
+                except ValueError:
+                    logging.warning(f"Fila inválida en caché CSV: {row}")
+                    continue
     except Exception as e:
         logging.warning(f"Error al leer caché CSV: {e}")
     return None
@@ -111,13 +121,18 @@ def _load_elevation_from_cache(lat: float, lon: float) -> Optional[float]:
 def _save_elevation_to_cache(lat: float, lon: float, elevation: float, author: str = AUTHOR_ATTRIBUTION):
     """Guarda elevación en el archivo CSV de caché."""
     try:
+        lat_r = round(lat, 5)
+        lon_r = round(lon, 5)
+        # Verificar si la entrada ya existe
+        if _load_elevation_from_cache(lat_r, lon_r) is not None:
+            return  # Evitar duplicados
         file_exists = os.path.exists(ELEVATION_CACHE_FILE)
         with open(ELEVATION_CACHE_FILE, mode='a', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
             if not file_exists:
                 writer.writerow([f"# {author} - Caché de elevaciones para vías férreas"])
                 writer.writerow(["latitude", "longitude", "elevation"])
-            writer.writerow([lat, lon, elevation])
+            writer.writerow([lat_r, lon_r, elevation])
     except Exception as e:
         logging.warning(f"Error al guardar en caché CSV: {e}")
 
