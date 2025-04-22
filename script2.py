@@ -307,7 +307,7 @@ def graficar_html(puntos_con_elevacion: List[InterpolatedPoint],
                   theme: str = "light",
                   colors: str = "blue,orange",
                   watermark: str = "LAL") -> Optional[go.Figure]:
-    """Genera gráfico interactivo sin pendiente, con eje Y ajustable y marca de agua."""
+    """Genera gráfico interactivo sin pendiente, con eje Y completamente ajustable y marca de agua."""
     if not puntos_con_elevacion:
         logging.warning("No hay puntos para graficar")
         return None
@@ -367,20 +367,32 @@ def graficar_html(puntos_con_elevacion: List[InterpolatedPoint],
             title="Elevación (msnm)",
             tickfont=dict(color=elev_color),
             autorange=True,  # Permite ajuste dinámico del rango
-            rangemode="normal"  # Asegura que el usuario pueda modificar el rango
+            rangemode="normal",  # Asegura que el usuario pueda modificar el rango
+            fixedrange=False  # Permite zoom y escalado en el eje Y
         ),
-        xaxis=dict(hoverformat='.3f'),
+        xaxis=dict(
+            hoverformat='.3f',
+            fixedrange=False  # Permite zoom y escalado en el eje X
+        ),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=60, r=60, t=90, b=50),
         template=template,
         annotations=annotations,
-        dragmode='zoom',  # Habilita zoom y ajuste interactivo
-        showlegend=True
+        dragmode='pan',  # Cambiado a 'pan' para facilitar desplazamiento y escalado
+        showlegend=True,
+        # Habilitar barra de herramientas con opciones de zoom y pan
+        modebar_add=[
+            'zoom2d', 'pan2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d'
+        ]
     )
 
-    # Habilitar herramientas interactivas para ajustar el eje Y
-    fig.update_yaxes(fixedrange=False)  # Permite al usuario cambiar el rango del eje Y
+    # Asegurar que el eje Y sea completamente interactivo
+    fig.update_yaxes(
+        fixedrange=False,  # Permite zoom y escalado
+        scaleanchor=None,  # No fija la escala a otro eje
+        scaleratio=None    # Permite escalado libre
+    )
 
     try:
         plot(fig, filename=archivo_html, auto_open=False, include_plotlyjs='cdn')
