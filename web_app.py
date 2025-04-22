@@ -132,14 +132,14 @@ if not df_estaciones.empty:
     st.subheader("📍 Seleccionar Estaciones")
     estaciones_disponibles = df_estaciones['Nombre'].tolist()
     estaciones_seleccionadas = st.multiselect(
-        "Selecciona 2 o 3 estaciones para el perfil altimétrico",
+        "Selecciona 2 o más estaciones para el perfil altimétrico",
         options=estaciones_disponibles,
         default=estaciones_disponibles[:2],  # Selecciona las primeras 2 por defecto
-        help="Elige entre 2 y 3 estaciones. Las estaciones deben estar en orden creciente de Km."
+        help="Elige 2 o más estaciones. Las estaciones deben estar en orden creciente de Km."
     )
 
-    if len(estaciones_seleccionadas) < 2 or len(estaciones_seleccionadas) > 3:
-        st.warning("⚠️ Por favor, selecciona entre 2 y 3 estaciones.")
+    if len(estaciones_seleccionadas) < 2:
+        st.warning("⚠️ Por favor, selecciona al menos 2 estaciones.")
     else:
         # Filtrar el DataFrame para incluir solo las estaciones seleccionadas
         df_filtrado = df_estaciones[df_estaciones['Nombre'].isin(estaciones_seleccionadas)].copy()
@@ -181,9 +181,12 @@ if not df_estaciones.empty:
                         st.plotly_chart(fig, use_container_width=True)
                         st.markdown("""
                         **Instrucciones para ajustar el gráfico:**
-                        - **Zoom y desplazamiento**: Usa la rueda del ratón o las herramientas de la barra superior para hacer zoom.
-                        - **Ajustar el eje Y (elevación)**: Haz doble clic en el eje Y o arrastra para seleccionar un rango específico de elevaciones.
-                        - **Restablecer vista**: Haz doble clic en el gráfico para volver al rango original.
+                        - **Zoom en el gráfico**: Usa la rueda del ratón o selecciona un área para acercar.
+                        - **Desplazamiento**: Haz clic y arrastra el gráfico para moverlo.
+                        - **Ajustar el eje Y (elevación)**:
+                          - **Desplazar**: Haz clic y arrastra el eje Y para moverlo hacia arriba o abajo.
+                          - **Escalar**: Usa las herramientas de zoom en la barra superior o selecciona un rango en el eje Y.
+                          - **Restablecer**: Haz clic en 'Reset axes' en la barra superior para volver al rango original.
                         """)
 
                         with st.expander("📥 Descargar resultados"):
@@ -200,7 +203,7 @@ if not df_estaciones.empty:
                                 exportar_pdf(fig, pdf_file)
                                 archivos_temporales.append(pdf_file)
                             with open(pdf_file, "rb") as f:
-                                    st.download_button("📄 Descargar PDF", f, file_name=f"{nombre_base}.pdf")
+                                st.download_button("📄 Descargar PDF", f, file_name=f"{nombre_base}.pdf")
 
                             # Descarga CSV
                             with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
