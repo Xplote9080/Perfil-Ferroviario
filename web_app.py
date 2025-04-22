@@ -14,7 +14,7 @@ st.title("🚆 Generador de Perfil Altimétrico Ferroviario - LAL 2025")
 
 st.markdown("""
 Subí un archivo **CSV** con estaciones o un **KML** con puntos (nombre, latitud, longitud).
-El nombre del punto debe tener este formato: `NombreEstacion,KM` (ej: `Olavarria,332.2`).
+El nombre del punto debe tener este formato: `NombreEstacion,KM` (ej: `Ayacucho,332.5`).
 """)
 
 # --- Función para procesar KML ---
@@ -80,7 +80,7 @@ def generar_perfil(_df_editada, intervalo_m, ventana_suavizado):
                             titulo=f"Perfil Altimétrico - {nombre_tramo}",
                             slope_data=pendientes)
     nombre_base = f"perfil_{estaciones[0].nombre}_{estaciones[-1].nombre}".replace(" ", "_")
-    return fig, puntos_elev, pendientes, estaciones, nombre_base, csv_temp.name
+    return fig, puntos_elev, pendientes, estaciones, nombre_base, csv_temp.name, html_file
 
 # --- Carga del archivo ---
 archivo_subido = st.file_uploader("📤 Subí tu archivo CSV o KML", type=['csv', 'kml'])
@@ -172,10 +172,10 @@ if not df_estaciones.empty:
             if st.button("🚀 Generar perfil altimétrico"):
                 try:
                     with st.spinner("Procesando..."):
-                        fig, puntos_elev, pendientes, estaciones, nombre_base, csv_temp_path = generar_perfil(
+                        fig, puntos_elev, pendientes, estaciones, nombre_base, csv_temp_path, html_file = generar_perfil(
                             df_editada, intervalo_m, ventana_suavizado
                         )
-                        archivos_temporales = [csv_temp_path]
+                        archivos_temporales = [csv_temp_path, html_file]
 
                         st.success("✅ Perfil generado")
                         st.plotly_chart(fig, use_container_width=True)
@@ -187,13 +187,22 @@ if not df_estaciones.empty:
                         """)
 
                         with st.expander("📥 Descargar resultados"):
+                            # Descarga HTML
+                            if os.path.exists(html_file):
+                                with open(html_file, "rb") as f:
+                                    st.download_button("🌐 Descargar HTML", f, file_name=f"{nombre_base}.html")
+                            else:
+                                st.error("❌ No se pudo encontrar el archivo HTML para descargar.")
+
+                            # Descarga PDF
                             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                                 pdf_file = tmp.name
                                 exportar_pdf(fig, pdf_file)
                                 archivos_temporales.append(pdf_file)
                             with open(pdf_file, "rb") as f:
-                                st.download_button("📄 Descargar PDF", f, file_name=f"{nombre_base}.pdf")
+                                    st.download_button("📄 Descargar PDF", f, file_name=f"{nombre_base}.pdf")
 
+                            # Descarga CSV
                             with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
                                 csv_file = tmp.name
                                 exportar_csv(puntos_elev, pendientes, csv_file)
@@ -201,6 +210,7 @@ if not df_estaciones.empty:
                             with open(csv_file, "rb") as f:
                                 st.download_button("📊 Descargar CSV", f, file_name=f"{nombre_base}_datos.csv")
 
+                            # Descarga KML
                             with tempfile.NamedTemporaryFile(suffix=".kml", delete=False) as tmp:
                                 kml_file = tmp.name
                                 exportar_kml(puntos_elev, estaciones, kml_file)
@@ -208,6 +218,7 @@ if not df_estaciones.empty:
                             with open(kml_file, "rb") as f:
                                 st.download_button("🌍 Descargar KML", f, file_name=f"{nombre_base}_estaciones.kml")
 
+                            # Descarga GeoJSON
                             with tempfile.NamedTemporaryFile(suffix=".geojson", delete=False) as tmp:
                                 geojson_file = tmp.name
                                 exportar_geojson(puntos_elev, estaciones, geojson_file)
