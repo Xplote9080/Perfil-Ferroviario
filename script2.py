@@ -8,7 +8,7 @@ Funcionalidades:
 - Interpola puntos usando CubicSpline.
 - Obtiene elevaciones con la API de Open-Meteo (con caché en CSV y llamadas por lotes paralelas).
 - Calcula pendientes suavizadas (m/km) con filtro Savitzky-Golay.
-- Genera gráficos HTML interactivos con Plotly (elevación + pendiente) con marca de agua.
+- Genera gráficos HTML interactivos con Plotly (elevación) con marca de agua.
 - Exporta a PDF, KML, CSV y GeoJSON.
 - Valida rangos de latitud, longitud y kilómetros.
 - Incluye atribución: "Perfil altimétrico ferroviario - LAL 2025".
@@ -307,20 +307,19 @@ def graficar_html(puntos_con_elevacion: List[InterpolatedPoint],
                   theme: str = "light",
                   colors: str = "blue,orange",
                   watermark: str = "LAL") -> Optional[go.Figure]:
-    """Genera gráfico interactivo con tema, colores y marca de agua."""
+    """Genera gráfico interactivo sin pendiente, con eje Y ajustable y marca de agua."""
     if not puntos_con_elevacion:
         logging.warning("No hay puntos para graficar")
         return None
 
     kms = np.array([p.km for p in puntos_con_elevacion])
     elevs = np.array([p.elevation if p.elevation is not None else np.nan for p in puntos_con_elevacion], dtype=float)
-    elev_color, slope_color = colors.split(',') if ',' in colors else ("blue", "orange")
+    elev_color = colors.split(',')[0] if ',' in colors else "blue"
 
-    has_slope_data = slope_data is not None and len(slope_data) == len(kms)
+    # Texto emergente solo con Km y Elevación
     hover_texts = [
-        f"<b>Km: {p.km:.3f}</b><br>Elev: {p.elevation:.1f} m<br>Pendiente: {slope_data[i]:.1f} m/km" if has_slope_data and not np.isnan(slope_data[i])
-        else f"<b>Km: {p.km:.3f}</b><br>Elev: {p.elevation:.1f} m<br>Pendiente: N/A"
-        for i, p in enumerate(puntos_con_elevacion)
+        f"<b>Km: {p.km:.3f}</b><br>Elev: {p.elevation:.1f} m"
+        for p in puntos_con_elevacion
     ]
 
     fig = go.Figure()
@@ -337,7 +336,6 @@ def graficar_html(puntos_con_elevacion: List[InterpolatedPoint],
         for i, est in enumerate(estaciones_tramo):
             idx = indices_closest[i]
             elev = elevs[idx] if not np.isnan(elevs[idx]) else DEFAULT_ELEVATION_ON_ERROR
-            slope = slope_data[idx] if has_slope_data and not np.isnan(slope_data[idx]) else "N/A"
             fig.add_trace(go.Scatter(
                 x=[kms[idx]], y=[elev],
                 mode='markers+text', text=[est.nombre],
@@ -345,16 +343,9 @@ def graficar_html(puntos_con_elevacion: List[InterpolatedPoint],
                 marker=dict(size=10, color='red', symbol='triangle-up'),
                 name=est.nombre,
                 hoverinfo='text',
-                hovertext=f"<b>{est.nombre}</b><br>Km: {est.km:.3f}<br>Elev: {elev:.1f} m<br>Pendiente: {slope} m/km",
+                hovertext=f"<b>{est.nombre}</b><br>Km: {est.km:.3f}<br>Elev: {elev:.1f} m",
                 yaxis='y1'
             ))
-
-    if has_slope_data:
-        fig.add_trace(go.Scattergl(
-            x=kms, y=slope_data, mode='lines', name='Pendiente (m/km)',
-            line=dict(color=slope_color, width=1.5, dash='dash'),
-            yaxis='y2', hoverinfo='skip'
-        ))
 
     template = "plotly" if theme == "light" else "plotly_dark"
     annotations = [
@@ -372,18 +363,24 @@ def graficar_html(puntos_con_elevacion: List[InterpolatedPoint],
     fig.update_layout(
         title=dict(text=titulo, x=0.5, xanchor='center'),
         xaxis_title="Kilómetro",
-        yaxis=dict(title="Elevación (msnm)", tickfont=dict(color=elev_color)),
-        yaxis2=dict(
-            title="Pendiente (m/km)", tickfont=dict(color=slope_color),
-            anchor="x", overlaying="y", side="right", showgrid=False
+        yaxis=dict(
+            title="Elevación (msnm)",
+            tickfont=dict(color=elev_color),
+            autorange=True,  # Permite ajuste dinámico del rango
+            rangemode="normal"  # Asegura que el usuario pueda modificar el rango
         ),
         xaxis=dict(hoverformat='.3f'),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=60, r=60, t=90, b=50),
         template=template,
-        annotations=annotations
+        annotations=annotations,
+        dragmode='zoom',  # Habilita zoom y ajuste interactivo
+        showlegend=True
     )
+
+    # Habilitar herramientas interactivas para ajustar el eje Y
+    fig.update_yaxes(fixedrange=False)  # Permite al usuario cambiar el rango del eje Y
 
     try:
         plot(fig, filename=archivo_html, auto_open=False, include_plotlyjs='cdn')
