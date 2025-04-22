@@ -179,6 +179,12 @@ if not df_estaciones.empty:
 
                         st.success("✅ Perfil generado")
                         st.plotly_chart(fig, use_container_width=True)
+                        st.markdown("""
+                        **Instrucciones para ajustar el gráfico:**
+                        - **Zoom y desplazamiento**: Usa la rueda del ratón o las herramientas de la barra superior para hacer zoom.
+                        - **Ajustar el eje Y (elevación)**: Haz doble clic en el eje Y o arrastra para seleccionar un rango específico de elevaciones.
+                        - **Restablecer vista**: Haz doble clic en el gráfico para volver al rango original.
+                        """)
 
                         with st.expander("📥 Descargar resultados"):
                             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
