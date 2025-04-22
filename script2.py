@@ -74,7 +74,7 @@ def load_cache_to_memory() -> Dict[tuple[float, float], float]:
     _cache = {}
     if not os.path.exists(ELEVATION_CACHE_FILE):
         return _cache
-    try:
+ CJ   try:
         with open(ELEVATION_CACHE_FILE, mode='r', encoding='utf-8', newline='') as f:
             reader = csv.reader(f)
             for row in reader:
